@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Request, Response, Body, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
+from utils import HTTP
 
 app = FastAPI()
 
@@ -26,12 +27,21 @@ def read_root():
 
 
 @app.post("/api/v1/generate-command")
-def generate_command(body = Body(...)):
+def generate_command(request: Request, response: Response, body = Body(...)):
+    http = HTTP(response)
     try:
         # get prompt from body
-        prompt = jsonable_encoder(body)
+        req_body = jsonable_encoder(body)
+        prompt = req_body.get("prompt", None)
+        os = req_body.get("os", "linux")
+        if not prompt:
+            return http.response(status.HTTP_400_BAD_REQUEST, "Prompt is required")
+        if os not in ["windows", "linux", "mac"]:
+            return http.response(status.HTTP_400_BAD_REQUEST, "Please select a valid operating system")
+        if prompt == "moron":
+            return http.response(status.HTTP_406_NOT_ACCEPTABLE, "denied processing offensive words")
         # generate command
-        return {"command": "echo " + prompt["prompt"]}
+        return http.response(status.HTTP_200_OK, "echo " + prompt)
     except Exception as e:
-        return {"error": str(e)}
+        return http.response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
     
